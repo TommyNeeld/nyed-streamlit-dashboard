@@ -1,0 +1,38 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8502:8501"
+    environment:
+      - PGUSER=postgres
+      - PGPASSWORD=postgres
+      - PGHOST=db
+      - PGDATABASE=dashdb
+    env_file:
+      - path: .env.local
+        required: false
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./:/app
+    command: streamlit run streamlit_app.py --server.port=8501 --server.address=0.0.0.0
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=dashdb
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./_volumes/database:/var/lib/postgresql/data/
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "dashdb", "-h", "db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
