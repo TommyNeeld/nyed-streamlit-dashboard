@@ -60,10 +60,9 @@ Required repository secrets:
 
 - `CURRENT_RMS_API_KEY`
 - `CURRENT_RMS_SUBDOMAIN`
-- `NEON_DATABASE_URL_STAGING`
-- `NEON_DATABASE_URL_PROD` later, after production cutover
+- `NEON_DATABASE_URL_PROD`
 
 The workflow runs incremental syncs every 30 minutes, a full sync daily, and
-supports manual `incremental`, `full`, or `backfill` dispatches. Use a manual
-`backfill` against staging and then production after deploying schema/query
+supports manual `incremental`, `full`, or `backfill` dispatches against the
+production database. Use a manual `backfill` after deploying schema/query
 changes that rely on historical Current RMS rows.

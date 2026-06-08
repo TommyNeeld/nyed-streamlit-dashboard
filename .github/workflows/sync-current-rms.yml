@@ -15,17 +15,9 @@ on:
           - incremental
           - full
           - backfill
-      database:
-        description: "Database target"
-        required: true
-        default: "staging"
-        type: choice
-        options:
-          - staging
-          - production
 
 concurrency:
-  group: current-rms-sync-${{ github.event.inputs.database || 'staging' }}
+  group: current-rms-sync-production
   cancel-in-progress: false
 
 jobs:
@@ -49,7 +41,6 @@ jobs:
         shell: bash
         run: |
           MODE="${{ github.event.inputs.mode }}"
-          TARGET="${{ github.event.inputs.database }}"
 
           if [[ -z "$MODE" ]]; then
             if [[ "${{ github.event.schedule }}" == "17 2 * * *" ]]; then
@@ -59,15 +50,7 @@ jobs:
             fi
           fi
 
-          if [[ -z "$TARGET" ]]; then
-            TARGET="staging"
-          fi
-
-          if [[ "$TARGET" == "production" ]]; then
-            echo "DATABASE_URL=${{ secrets.NEON_DATABASE_URL_PROD }}" >> "$GITHUB_ENV"
-          else
-            echo "DATABASE_URL=${{ secrets.NEON_DATABASE_URL_STAGING }}" >> "$GITHUB_ENV"
-          fi
+          echo "DATABASE_URL=${{ secrets.NEON_DATABASE_URL_PROD }}" >> "$GITHUB_ENV"
           echo "SYNC_MODE=$MODE" >> "$GITHUB_ENV"
 
       - name: Run sync
