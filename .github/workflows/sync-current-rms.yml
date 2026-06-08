@@ -26,6 +26,7 @@ jobs:
     env:
       CURRENT_RMS_API_KEY: ${{ secrets.CURRENT_RMS_API_KEY }}
       CURRENT_RMS_SUBDOMAIN: ${{ secrets.CURRENT_RMS_SUBDOMAIN || 'nyed' }}
+      DATABASE_URL: ${{ secrets.NEON_DATABASE_URL_PROD }}
     steps:
       - uses: actions/checkout@v4
 
@@ -37,7 +38,20 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Select sync target
+      - name: Validate secrets
+        shell: bash
+        run: |
+          if [[ -z "$DATABASE_URL" ]]; then
+            echo "Missing GitHub secret: NEON_DATABASE_URL_PROD" >&2
+            exit 1
+          fi
+
+          if [[ -z "$CURRENT_RMS_API_KEY" ]]; then
+            echo "Missing GitHub secret: CURRENT_RMS_API_KEY" >&2
+            exit 1
+          fi
+
+      - name: Select sync mode
         shell: bash
         run: |
           MODE="${{ github.event.inputs.mode }}"
@@ -49,8 +63,6 @@ jobs:
               MODE="incremental"
             fi
           fi
-
-          echo "DATABASE_URL=${{ secrets.NEON_DATABASE_URL_PROD }}" >> "$GITHUB_ENV"
           echo "SYNC_MODE=$MODE" >> "$GITHUB_ENV"
 
       - name: Run sync
