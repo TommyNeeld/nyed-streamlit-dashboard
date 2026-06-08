@@ -34,9 +34,8 @@ def cached_engine():
     return get_engine()
 
 
-@st.cache_resource
 def cookie_manager():
-    return stx.CookieManager()
+    return stx.CookieManager(key="nyed_cookie_manager")
 
 
 def load_snapshot() -> DashboardSnapshot:
