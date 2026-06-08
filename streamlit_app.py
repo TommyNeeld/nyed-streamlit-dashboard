@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import base64
 import hmac
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from html import escape
 from pathlib import Path
 
+import extra_streamlit_components as stx
 import pandas as pd
 import streamlit as st
 
@@ -24,10 +25,18 @@ st.set_page_config(
     layout="wide",
 )
 
+AUTH_COOKIE_NAME = "nyed_dashboard_auth"
+AUTH_COOKIE_DAYS = 30
+
 
 @st.cache_resource
 def cached_engine():
     return get_engine()
+
+
+@st.cache_resource
+def cookie_manager():
+    return stx.CookieManager()
 
 
 def load_snapshot() -> DashboardSnapshot:
@@ -41,6 +50,37 @@ def auth_credentials() -> tuple[str, str | None]:
     )
 
 
+def auth_cookie_value() -> str | None:
+    username, password = auth_credentials()
+    if not password:
+        return None
+    digest = hmac.new(password.encode("utf-8"), username.encode("utf-8"), "sha256")
+    return f"{username}:{digest.hexdigest()}"
+
+
+def set_auth_cookie() -> None:
+    value = auth_cookie_value()
+    if not value:
+        return
+    cookie_manager().set(
+        AUTH_COOKIE_NAME,
+        value,
+        expires_at=datetime.utcnow() + timedelta(days=AUTH_COOKIE_DAYS),
+    )
+
+
+def clear_auth_cookie() -> None:
+    cookie_manager().delete(AUTH_COOKIE_NAME)
+
+
+def has_valid_auth_cookie() -> bool:
+    expected = auth_cookie_value()
+    if not expected:
+        return False
+    actual = cookie_manager().get(AUTH_COOKIE_NAME)
+    return bool(actual) and hmac.compare_digest(actual, expected)
+
+
 def authenticate(username: str, password: str) -> bool:
     expected_username, expected_password = auth_credentials()
     if not expected_password:
@@ -52,7 +92,12 @@ def authenticate(username: str, password: str) -> bool:
 
 
 def is_authenticated() -> bool:
-    return bool(st.session_state.get("authenticated"))
+    if st.session_state.get("authenticated"):
+        return True
+    if has_valid_auth_cookie():
+        st.session_state["authenticated"] = True
+        return True
+    return False
 
 
 def render_login() -> None:
@@ -71,6 +116,7 @@ def render_login() -> None:
     if submitted:
         if authenticate(username, password):
             st.session_state["authenticated"] = True
+            set_auth_cookie()
             st.rerun()
         st.error("Invalid username or password.")
 
@@ -79,6 +125,7 @@ def render_logout() -> None:
     with st.sidebar:
         if st.button("Sign out"):
             st.session_state["authenticated"] = False
+            clear_auth_cookie()
             st.rerun()
 
 
