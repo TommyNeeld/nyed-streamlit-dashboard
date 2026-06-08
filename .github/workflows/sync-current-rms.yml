@@ -23,6 +23,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    environment: main
     env:
       CURRENT_RMS_API_KEY: ${{ secrets.CURRENT_RMS_API_KEY }}
       CURRENT_RMS_SUBDOMAIN: ${{ secrets.CURRENT_RMS_SUBDOMAIN || 'nyed' }}
