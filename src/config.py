@@ -41,13 +41,15 @@ def get_database_url() -> str | URL:
     if url:
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql://", 1)
+        if url.startswith("postgresql://"):
+            url = url.replace("postgresql://", "postgresql+psycopg://", 1)
         if _needs_sslmode(url) and "sslmode=" not in url:
             sep = "&" if "?" in url else "?"
             url = f"{url}{sep}sslmode=require"
         return url
 
     return URL.create(
-        "postgresql",
+        "postgresql+psycopg",
         username=get_secret("PGUSER"),
         password=get_secret("PGPASSWORD"),
         host=get_secret("PGHOST", "localhost"),
