@@ -1,8 +1,8 @@
 # NYED sales dashboard
 
-This repo currently contains the legacy Dash/Heroku app and a new Streamlit refactor.
-The Streamlit app reads cached Postgres data only; Current RMS syncs run from a CLI
-or GitHub Actions.
+This repository contains the Streamlit refactor only.
+The dashboard reads cached Postgres data only. Current RMS syncs run from a CLI
+or GitHub Actions, not from the Streamlit request path.
 
 ## Run the Streamlit refactor locally
 
@@ -39,8 +39,6 @@ Configure these as root-level Streamlit secrets:
 
 ```toml
 DATABASE_URL = "postgresql://user:password@host/dbname?sslmode=require"
-CURRENT_RMS_API_KEY = "..."
-CURRENT_RMS_SUBDOMAIN = "nyed"
 DASHBOARD_USERNAME = "..."
 DASHBOARD_PASSWORD = "..."
 ```
@@ -48,6 +46,13 @@ DASHBOARD_PASSWORD = "..."
 `DASHBOARD_USERNAME` and `DASHBOARD_PASSWORD` protect the Streamlit app with a
 single shared login. `DASHBOARD_USERNAME` defaults to `admin`, but
 `DASHBOARD_PASSWORD` must be configured before the dashboard will load.
+
+The Streamlit app does not need `CURRENT_RMS_API_KEY` for normal operation.
+Only the sync runner needs Current RMS credentials.
+
+Streamlit Community Cloud may default to a newer Python runtime. If deployment
+fails on package compatibility, set the app's Python version to `3.12` in the
+Streamlit app settings.
 
 ## GitHub Actions sync
 
@@ -62,13 +67,3 @@ The workflow runs incremental syncs every 30 minutes, a full sync daily, and
 supports manual `incremental`, `full`, or `backfill` dispatches. Use a manual
 `backfill` against staging and then production after deploying schema/query
 changes that rely on historical Current RMS rows.
-
-## Legacy Heroku app
-
-```bash
-pip install -r requirements.txt
-gunicorn src.app:server
-heroku login
-heroku git:remote -a nyed
-git push heroku main
-```
