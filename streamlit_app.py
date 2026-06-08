@@ -27,6 +27,7 @@ st.set_page_config(
 
 AUTH_COOKIE_NAME = "nyed_dashboard_auth"
 AUTH_COOKIE_DAYS = 30
+COOKIE_MANAGER = stx.CookieManager(key="nyed_cookie_manager")
 
 
 @st.cache_resource
@@ -35,7 +36,7 @@ def cached_engine():
 
 
 def cookie_manager():
-    return stx.CookieManager(key="nyed_cookie_manager")
+    return COOKIE_MANAGER
 
 
 def load_snapshot() -> DashboardSnapshot:
