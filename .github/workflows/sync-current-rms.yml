@@ -2,8 +2,8 @@ name: Sync Current RMS
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
-    - cron: "17 2 * * *"
+    - cron: "0,30 7-22 * * *"
+    - cron: "17 7 * * *"
   workflow_dispatch:
     inputs:
       mode:
@@ -58,7 +58,7 @@ jobs:
           MODE="${{ github.event.inputs.mode }}"
 
           if [[ -z "$MODE" ]]; then
-            if [[ "${{ github.event.schedule }}" == "17 2 * * *" ]]; then
+            if [[ "${{ github.event.schedule }}" == "17 7 * * *" ]]; then
               MODE="full"
             else
               MODE="incremental"
