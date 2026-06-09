@@ -4,6 +4,18 @@ This repository contains the Streamlit refactor only.
 The dashboard reads cached Postgres data only. Current RMS syncs run from a CLI
 or GitHub Actions, not from the Streamlit request path.
 
+## Repository status
+
+This repository is public so it can be deployed on Streamlit Community Cloud.
+Public visibility does not grant write access to the repository. Only the owner
+and explicitly added collaborators can push to `main`.
+
+This is an internal business dashboard, not an open-source project. No license
+is granted for copying, modifying, redistributing, or reusing the code, assets,
+branding, or dashboard design.
+
+External contributions are not accepted through this repository.
+
 ## Run the Streamlit refactor locally
 
 ```bash
@@ -66,3 +78,7 @@ The workflow runs incremental syncs every 30 minutes, a full sync daily, and
 supports manual `incremental`, `full`, or `backfill` dispatches against the
 production database. Use a manual `backfill` after deploying schema/query
 changes that rely on historical Current RMS rows.
+
+## License
+
+No open-source license is provided. All rights are reserved.
