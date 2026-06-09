@@ -391,7 +391,12 @@ st.markdown(
         color: #7a7a7a;
         font-size: 1.1rem;
         text-align: center;
-        margin-bottom: 1.15rem;
+        margin: 0.15rem 0 1.15rem;
+      }
+      .refresh-button-wrap {
+        display: flex;
+        justify-content: center;
+        align-items: center;
       }
       .sync-note {
         color: #777;
@@ -594,10 +599,22 @@ render_logout()
 @st.fragment(run_every="5min")
 def render_dashboard() -> None:
     snapshot = load_snapshot()
-    st.markdown(
-        f'<p class="dashboard-caption">Last updated: {snapshot.generated_at:%d-%m-%Y %H:%M:%S}</p>',
-        unsafe_allow_html=True,
-    )
+    st.session_state["last_browser_refresh_at"] = snapshot.generated_at
+    _, timestamp_col, refresh_col = st.columns([1, 4, 1])
+    with timestamp_col:
+        st.markdown(
+            f'<p class="dashboard-caption">Last updated: {snapshot.generated_at:%d-%m-%Y %H:%M:%S}</p>',
+            unsafe_allow_html=True,
+        )
+    with refresh_col:
+        st.markdown('<div class="refresh-button-wrap">', unsafe_allow_html=True)
+        if st.button(
+            "Refresh now",
+            key="refresh_dashboard_now",
+            help="Reload dashboard data from Neon",
+        ):
+            st.session_state["last_manual_refresh_at"] = snapshot.generated_at
+        st.markdown("</div>", unsafe_allow_html=True)
     render_sync_health(snapshot)
     render_callouts(snapshot)
     render_tables(snapshot)
