@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import base64
 import hmac
-from datetime import date, datetime, timedelta
+import json
+from datetime import date
 from html import escape
 from pathlib import Path
 
-import extra_streamlit_components as stx
 import pandas as pd
 import streamlit as st
 
@@ -27,16 +27,12 @@ st.set_page_config(
 
 AUTH_COOKIE_NAME = "nyed_dashboard_auth"
 AUTH_COOKIE_DAYS = 30
-COOKIE_MANAGER = stx.CookieManager(key="nyed_cookie_manager")
+AUTH_COOKIE_MAX_AGE_SECONDS = AUTH_COOKIE_DAYS * 24 * 60 * 60
 
 
 @st.cache_resource
 def cached_engine():
     return get_engine()
-
-
-def cookie_manager():
-    return COOKIE_MANAGER
 
 
 def load_snapshot() -> DashboardSnapshot:
@@ -55,29 +51,41 @@ def auth_cookie_value() -> str | None:
     if not password:
         return None
     digest = hmac.new(password.encode("utf-8"), username.encode("utf-8"), "sha256")
-    return f"{username}:{digest.hexdigest()}"
+    token = f"{username}:{digest.hexdigest()}".encode("utf-8")
+    return base64.urlsafe_b64encode(token).decode("ascii").rstrip("=")
 
 
-def set_auth_cookie() -> None:
-    value = auth_cookie_value()
-    if not value:
-        return
-    cookie_manager().set(
-        AUTH_COOKIE_NAME,
-        value,
-        expires_at=datetime.utcnow() + timedelta(days=AUTH_COOKIE_DAYS),
+def render_cookie_script(value: str | None) -> None:
+    if value:
+        command = (
+            f"document.cookie = {json.dumps(AUTH_COOKIE_NAME)} + '=' + "
+            f"{json.dumps(value)} + '; Max-Age={AUTH_COOKIE_MAX_AGE_SECONDS}; "
+            "Path=/; SameSite=Lax' + "
+            "(window.location.protocol === 'https:' ? '; Secure' : '');"
+        )
+    else:
+        command = (
+            f"document.cookie = {json.dumps(AUTH_COOKIE_NAME)} + "
+            "'=; Max-Age=0; Path=/; SameSite=Lax' + "
+            "(window.location.protocol === 'https:' ? '; Secure' : '');"
+        )
+    st.html(
+        f"<script>{command}</script>",
+        unsafe_allow_javascript=True,
     )
 
 
-def clear_auth_cookie() -> None:
-    cookie_manager().delete(AUTH_COOKIE_NAME)
+def persist_auth_cookie() -> None:
+    value = auth_cookie_value()
+    if value:
+        render_cookie_script(value)
 
 
 def has_valid_auth_cookie() -> bool:
     expected = auth_cookie_value()
     if not expected:
         return False
-    actual = cookie_manager().get(AUTH_COOKIE_NAME)
+    actual = st.context.cookies.get(AUTH_COOKIE_NAME)
     return bool(actual) and hmac.compare_digest(actual, expected)
 
 
@@ -92,6 +100,8 @@ def authenticate(username: str, password: str) -> bool:
 
 
 def is_authenticated() -> bool:
+    if st.session_state.get("signed_out"):
+        return False
     if st.session_state.get("authenticated"):
         return True
     if has_valid_auth_cookie():
@@ -116,7 +126,7 @@ def render_login() -> None:
     if submitted:
         if authenticate(username, password):
             st.session_state["authenticated"] = True
-            set_auth_cookie()
+            st.session_state.pop("signed_out", None)
             st.rerun()
         st.error("Invalid username or password.")
 
@@ -125,7 +135,7 @@ def render_logout() -> None:
     with st.sidebar:
         if st.button("Sign out"):
             st.session_state["authenticated"] = False
-            clear_auth_cookie()
+            st.session_state["signed_out"] = True
             st.rerun()
 
 
@@ -391,12 +401,23 @@ st.markdown(
         color: #7a7a7a;
         font-size: 1.1rem;
         text-align: center;
-        margin: 0.15rem 0 1.15rem;
+        margin: 0.15rem 0 0.35rem;
       }
       .refresh-button-wrap {
         display: flex;
         justify-content: center;
         align-items: center;
+        margin-bottom: 1.05rem;
+      }
+      div.st-key-refresh_dashboard_now {
+        width: 100% !important;
+        display: flex;
+        justify-content: center;
+      }
+      div.st-key-refresh_dashboard_now div[data-testid="stButton"] {
+        display: flex;
+        justify-content: center;
+        width: auto;
       }
       .sync-note {
         color: #777;
@@ -590,9 +611,12 @@ st.markdown("<h1>SALES DASHBOARD</h1>", unsafe_allow_html=True)
 
 
 if not is_authenticated():
+    if st.session_state.get("signed_out"):
+        render_cookie_script(None)
     render_login()
     st.stop()
 
+persist_auth_cookie()
 render_logout()
 
 
@@ -600,21 +624,18 @@ render_logout()
 def render_dashboard() -> None:
     snapshot = load_snapshot()
     st.session_state["last_browser_refresh_at"] = snapshot.generated_at
-    _, timestamp_col, refresh_col = st.columns([1, 4, 1])
-    with timestamp_col:
-        st.markdown(
-            f'<p class="dashboard-caption">Last updated: {snapshot.generated_at:%d-%m-%Y %H:%M:%S}</p>',
-            unsafe_allow_html=True,
-        )
-    with refresh_col:
-        st.markdown('<div class="refresh-button-wrap">', unsafe_allow_html=True)
-        if st.button(
-            "Refresh now",
-            key="refresh_dashboard_now",
-            help="Reload dashboard data from Neon",
-        ):
-            st.session_state["last_manual_refresh_at"] = snapshot.generated_at
-        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown(
+        f'<p class="dashboard-caption">Last updated: {snapshot.generated_at:%d-%m-%Y %H:%M:%S}</p>',
+        unsafe_allow_html=True,
+    )
+    st.markdown('<div class="refresh-button-wrap">', unsafe_allow_html=True)
+    if st.button(
+        "Refresh now",
+        key="refresh_dashboard_now",
+        help="Reload dashboard data from Neon",
+    ):
+        st.session_state["last_manual_refresh_at"] = snapshot.generated_at
+    st.markdown("</div>", unsafe_allow_html=True)
     render_sync_health(snapshot)
     render_callouts(snapshot)
     render_tables(snapshot)
