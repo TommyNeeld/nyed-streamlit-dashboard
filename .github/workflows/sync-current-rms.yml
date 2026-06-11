@@ -67,4 +67,21 @@ jobs:
           echo "SYNC_MODE=$MODE" >> "$GITHUB_ENV"
 
       - name: Run sync
-        run: python -m src.sync_current_rms --mode "$SYNC_MODE"
+        shell: bash
+        run: |
+          max_attempts=3
+          for attempt in $(seq 1 "$max_attempts"); do
+            echo "Sync attempt $attempt of $max_attempts"
+            if python -m src.sync_current_rms --mode "$SYNC_MODE"; then
+              exit 0
+            fi
+
+            if [[ "$attempt" == "$max_attempts" ]]; then
+              echo "Sync failed after $max_attempts attempts" >&2
+              exit 1
+            fi
+
+            sleep_seconds=$((attempt * 60))
+            echo "Sync failed; retrying in ${sleep_seconds}s"
+            sleep "$sleep_seconds"
+          done

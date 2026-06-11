@@ -28,11 +28,18 @@ def get_secret(name: str, default: str | None = None) -> str | None:
     return default
 
 
-def _needs_sslmode(url: str) -> bool:
+def _is_remote_postgres_url(url: str) -> bool:
     local_markers = ("localhost", "127.0.0.1", "@db:", "@db/")
-    return url.startswith(("postgres://", "postgresql://")) and not any(
-        marker in url for marker in local_markers
-    )
+    return url.startswith(
+        ("postgres://", "postgresql://", "postgresql+psycopg://")
+    ) and not any(marker in url for marker in local_markers)
+
+
+def _append_url_param(url: str, name: str, value: str) -> str:
+    if f"{name}=" in url:
+        return url
+    sep = "&" if "?" in url else "?"
+    return f"{url}{sep}{name}={value}"
 
 
 @lru_cache(maxsize=1)
@@ -43,9 +50,9 @@ def get_database_url() -> str | URL:
             url = url.replace("postgres://", "postgresql://", 1)
         if url.startswith("postgresql://"):
             url = url.replace("postgresql://", "postgresql+psycopg://", 1)
-        if _needs_sslmode(url) and "sslmode=" not in url:
-            sep = "&" if "?" in url else "?"
-            url = f"{url}{sep}sslmode=require"
+        if _is_remote_postgres_url(url):
+            url = _append_url_param(url, "sslmode", "require")
+            url = _append_url_param(url, "connect_timeout", "15")
         return url
 
     return URL.create(
